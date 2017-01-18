@@ -1,0 +1,8 @@
+; $Id: site_overrides.info,v 1.1.2.2.2.1 2011/01/25 23:28:46 hhopkins Exp $
+name = Drupal Site Overrides
+description = Provides an override module for site specific overrides
+core = 7.x
+version = "7.x-1.0"
+core = "7.x"
+project = "site_overrides"
+datestamp = "1236471659"

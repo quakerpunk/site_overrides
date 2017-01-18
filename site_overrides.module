@@ -1,0 +1,313 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * TODO: Enter file description here.
+ */
+
+/**
+ * Implementation of hook_menu().
+ */
+function site_overrides_menu() {
+	$items = array();
+
+	$items['register/%/confirmation'] = array(
+	  'page callback' => 'site_overrides_register_confirmation',
+	  'page arguments' => array(1),
+	  'access arguments' => array("access content"),
+    'type' => MENU_CALLBACK,
+    'title' => 'Confirmation',
+	);
+
+	return $items;
+}
+
+/**
+ * Implementation of hook_menu_alter().
+ */
+function site_overrides_menu_alter(&$items) {
+	return $items;
+}
+
+/**
+ * Implementation of hook_theme
+ */
+function site_overrides_theme() {
+	return array(
+	  'confirmation_page' => array(
+      'template' => 'register-confirmation',
+      'variables' => array('data' => null),
+    ),
+	);
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function site_overrides_form_alter(&$form, &$form_state, $form_id) {
+	if ($form_id == 'webform_client_form_1638') {
+    if ($theNode = menu_get_object()) {
+      $form['submitted']['campaign']['#value'] = $theNode->title;
+    }
+  } else if ($form_id == 'webform_client_form_1687') {
+    $theNode = menu_get_object();
+    if (!empty($theNode)) {
+      $form['submitted']['nid']['#value'] = $theNode->nid;
+      $form['submitted']['title']['#value'] = $theNode->title;
+      if ($theNode->nid == 1689) {
+      	$form['#node']->content['body'][0]['#markup'] = '<p><strong>Complete this form to download the Pluggable Module brochure.</strong></p>';
+      } else {
+        $scrubbed_type = str_replace('_', ' ', $theNode->type);
+        $specific_info = $theNode->title . ' ' . $scrubbed_type;
+        $form['#node']->content['body'][0]['#markup'] = str_replace('&lt;title&gt;', $specific_info, $form['#node']->content['body'][0]['#markup']);
+      }
+    } else {
+      watchdog('site_overrides','We have no menu_get_object');
+    }
+  } else if ($form_id == 'webform_client_form_1758') {
+    if ($theNode = menu_get_object()) {
+      $assetNode = $theNode->field_marketing_asset[LANGUAGE_NONE][0]['entity'];
+      $form['submitted']['nid']['#value'] = $theNode->nid;
+      $form['submitted']['title']['#value'] = $theNode->title;
+      $form['submitted']['campaign_id']['#value'] = $theNode->field_campaign_id[LANGUAGE_NONE][0]['value'];
+
+      if (!empty($assetNode)) {
+        switch($assetNode->type) {
+          case 'white_paper':
+            if (!empty($assetNode->field_whitepaper_us_pdf[LANGUAGE_NONE][0]['uri'])) {
+              $assetPath = $assetNode->field_whitepaper_us_pdf[LANGUAGE_NONE][0]['uri'];
+            } else {
+              $assetPath = $assetNode->field_whitepaper_a4_pdf[LANGUAGE_NONE][0]['uri'];
+            }
+            break;
+
+          case 'case_study':
+            if (!empty($assetNode->field_casestudy_us_pdf[LANGUAGE_NONE][0]['uri'])) {
+              $assetPath = $assetNode->field_casestudy_us_pdf[LANGUAGE_NONE][0]['uri'];
+            } else {
+              $assetPath = $assetNode->field_casestudy_a4_pdf[LANGUAGE_NONE][0]['uri'];
+            }
+            break;
+
+          case 'brochure':
+            if (!empty($assetNode->field_brochure_us_pdf[LANGUAGE_NONE][0]['uri'])) {
+              $assetPath = $assetNode->field_brochure_us_pdf[LANGUAGE_NONE][0]['uri'];
+            } else {
+              $assetPath = $assetNode->field_brochure_a4_pdf[LANGUAGE_NONE][0]['uri'];
+            }
+            break;
+
+          case 'datasheet':
+            if (!empty($assetNode->field_datasheet_us_pdf[LANGUAGE_NONE][0]['uri'])) {
+              $assetPath = $assetNode->field_datasheet_us_pdf[LANGUAGE_NONE][0]['uri'];
+            } else {
+              $assetPath = $assetNode->field_datasheets_a4_pdf[LANGUAGE_NONE][0]['uri'];
+            }
+            break;
+
+          case 'application_note':
+            if (!empty($assetNode->field_appnote_us_pdf[LANGUAGE_NONE][0]['uri'])) {
+              $assetPath = $assetNode->field_appnote_us_pdf[LANGUAGE_NONE][0]['uri'];
+            } else {
+              $assetPath = $assetNode->field_appnotes_a4_pdf[LANGUAGE_NONE][0]['uri'];
+            }
+            break;
+
+          case 'infographic':
+            $assetPath = $assetNode->field_infographic_us_pdf[LANGUAGE_NONE][0]['uri'];
+            break;
+
+          case 'video':
+            break;
+
+          default:
+            break;
+        }
+
+        $assetFile = file_create_url($assetPath);
+        $form['submitted']['asset']['#value'] = $assetFile;
+      } else {
+        //If there's no asset, just attach the URL for the Marketing Asset Landing Page
+        $urlOptions = array('absolute' => true);
+        $assetUrl = url("node/" . $theNode->nid, $urlOptions);
+        $form['submitted']['asset']['#value'] = $assetUrl;
+      }
+    }
+  }
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function site_overrides_form_views_exposed_form_alter(&$form, &$form_state) {
+  // Default the form action back to the main resources page in case the user clicks on a resource submenu link (i.e. Datasheets)
+  $form['#action'] = '/resources/all';
+
+  $category = arg(1);
+  if (!empty($category)) {
+    switch($category) {
+      case 'datasheets':
+        $form['type_1']['#value'] = 'datasheet';
+        break;
+      case 'white-papers':
+        $form['type_1']['#value'] = 'white_paper';
+        break;
+      case 'application-notes':
+        $form['type_1']['#value'] = 'application_note';
+        break;
+      case 'infographics':
+        $form['type_1']['#value'] = 'infographic';
+        break;
+      case 'case-studies':
+        $form['type_1']['#value'] = 'case_study';
+        break;
+      case 'videos':
+        $form['type_1']['#value'] = 'video';
+        break;
+      case 'all':
+      default:
+        break;
+    }
+
+    if ($category == 'all') {
+      $form['#submit'][] = '_site_overrides_set_active_item';
+    }
+    return true;
+  }
+
+  return $form;
+}
+
+function _site_overrides_set_active_item($form, $form_state) {
+  if (!empty($form_state['values']['type_1'])) {
+    switch($form_state['values']['type_1']) {
+      case 'datasheet':
+        menu_set_active_item('resources/datasheets');
+        break;
+      case 'white_paper':
+        menu_set_active_item('resources/white-papers');
+        break;
+      case 'application_note':
+        menu_set_active_item('resources/application-notes');
+        break;
+      case 'case_study':
+        menu_set_active_item('resources/case-studies');
+        break;
+      case 'infographic':
+        menu_set_active_item('resources/infographics');
+        break;
+      case 'video':
+        menu_set_active_item('resources/videos');
+        break;
+      default:
+        break;
+    }
+  }
+}
+
+function site_overrides_mail_alter(&$message) {
+	$default_site_name = variable_get('site_name', ini_get('sendmail_from'));
+	$default_from = '"'. mime_header_encode($default_site_name) .'" <'. variable_get('site_mail', ini_get('sendmail_from')) .'>';
+
+	// To prevent e-mail from adding the "On Behalf Of" text to the Sender field, we will match the
+	// email headers to the $from email address.
+	if ($default_from != $message['from']) {
+		// Get the email address from the $message['from'] field so that we can apply it correctly to the $message['headers']
+		$matches = array();
+		$pattern="/([\s]*)([_a-zA-Z0-9-]+(\.[_a-zA-Z0-9-]+)*([ ]+|)@([ ]+|)([a-zA-Z0-9-]+\.)+([a-zA-Z]{2,}))([\s]*)/i";
+		preg_match($pattern, $message['from'], $matches);
+
+		if(is_array($matches)) {
+			foreach($matches as $email) {
+				if(filter_var($email, FILTER_VALIDATE_EMAIL)) {
+					$from_email = $email;
+					break;
+				}
+			}
+			if(!empty($from_email)) {
+				$message['headers']['From'] = $message['from'];
+				$message['headers']['Sender'] = $message['headers']['Return-Path'] = $message['headers']['Errors-To'] = $from_email;
+			}
+		}
+	}
+}
+
+function site_overrides_register_confirmation($nid) {
+	$theSid = filter_input(INPUT_GET, 'sid', FILTER_SANITIZE_NUMBER_INT);
+	$submission = webform_menu_submission_load($theSid, $nid);
+	$data = _site_overrides_process_submission($submission);
+	$output = theme("confirmation_page", array('data' => $data));
+	return $output;
+}
+
+function _site_overrides_process_submission(&$sub) {
+	if ($sub) {
+		//Let's do some processing here, so that we can simply spit out information in the
+		//registration confirmation
+    $nid = $sub->data[7]['value'][0];
+		$theSubNode = node_load($nid);
+
+		$theLink = '';
+		switch($theSubNode->type) {
+      case 'application_note':
+          if (!empty($theSubNode->field_appnote_us_pdf)) {
+              $filepath = file_create_url($theSubNode->field_appnote_us_pdf[LANGUAGE_NONE][0]['uri']);
+          } else {
+              $filepath = file_create_url($theSubNode->field_appnote_a4_pdf[LANGUAGE_NONE][0]['uri']);
+          }
+          $theLink = l($theSubNode->title, $filepath);
+          break;
+      case 'white_paper':
+        if (!empty($theSubNode->field_whitepaper_us_pdf)) {
+          $filepath = file_create_url($theSubNode->field_whitepaper_us_pdf[LANGUAGE_NONE][0]['uri']);
+        } else {
+          $filepath = file_create_url($theSubNode->field_whitepaper_a4_pdf[LANGUAGE_NONE][0]['uri']);
+        }
+        $theLink = l($theSubNode->title, $filepath);
+        break;
+			case 'landing_page':
+				if ($theSubNode->nid == 1689) {
+					$theLink = '<div style="width: 576px; margin: 0 auto; text-align: center;"><h2>Click the image below to download the document.</h2><a href="http://www.example.com/sites/default/files/brochures/us_pdfs/pluggable_transceivers_for_print16.pdf"><img src="/sites/all/themes/example/images/pluggable_download.png" width="576" height="356" /></a><h2 style="margin-top: 20px;">Thanks for your interest in Example Company.</h2></div>';
+				}
+				break;
+			default:
+				break;
+		}
+
+    $data = array(
+      'sid' => $sub->sid,
+      'nid' => $sub->data[7]['value'][0],
+      'download_link' => $theLink,
+    );
+
+	}
+
+	return $data;
+}
+
+function site_overrides_webform_submission_insert($node, $submission) {
+  if ($node->nid == 2109) {
+    drupal_register_shutdown_function('_site_overrides_hash_password', $node, $submission);
+  }
+}
+
+function _site_overrides_hash_password($node, $submission) {
+  //17 - If no, password
+  //18 - If no, confirm password
+  foreach (array(17, 18) as $component_id) {
+    if (!empty($submission->data[$component_id]['value'][0])) {
+      //Hash the password.
+      require_once DRUPAL_ROOT . '/' . variable_get('password_inc', 'includes/password.inc');
+      $hashed_pass = user_hash_password($submission->data[$component_id]['value'][0]);
+      $updated = db_update('webform_submitted_data')
+        ->fields(array(
+          'data' => $hashed_pass,
+        ))
+        ->condition('nid', $node->nid)
+        ->condition('sid', $submission->sid)
+        ->condition('cid', $component_id)
+        ->execute();
+    }
+  }
+}
